@@ -15,6 +15,7 @@
     "@types/react-dom": "^18.0.11",
     "axios": "^1.6.0",
     "bootstrap": "^5.2.3",
+    "cypherchat": "file:../../FluxChat/CypherChat",
     "react": "^18.2.0",
     "react-device-detect": "^2.2.3",
     "react-dom": "^18.2.0",

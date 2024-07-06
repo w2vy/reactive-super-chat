@@ -1,12 +1,14 @@
 import Alert from '@mui/material/Alert';
 import { useState, useEffect, useRef } from 'react';
 import socketIOClient from "socket.io-client";
+//import CypherChat from 'cypherchat';
+
 //import useTransition from '../hooks/useTranslate';
 import InputEmoji from 'react-input-emoji';
 import {isMobile} from 'react-device-detect';
+
 const soundAlert = require("../sounds/alert.mp3");
 // declaring an mp3 file did not help, I solve the problem as best I can :)
-
 
 export default function Chat() {
   const [inputValue, setInputValue] = useState("");
@@ -14,6 +16,8 @@ export default function Chat() {
   const scrollDivRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<{ id: number, nickname: string; message: string }[]>([]);
   const nextId = useRef(1);
+  const CypherChat = require('cypherchat');
+  let chat: typeof CypherChat.CypherChat;
 
 
   useEffect(() => {
@@ -22,6 +26,7 @@ export default function Chat() {
       const audio = new Audio(soundAlert);
       audio.play();
       console.log("Connected")
+      chat = new CypherChat.CypherChat();
     });
   
     socket.emit("request_data", { nickname: localStorage.getItem("nickname") });
@@ -45,6 +50,7 @@ export default function Chat() {
 
   const addMessage = (nickname: string, message: string) => {
       setMessages(prevMessages => [...prevMessages, { id: nextId.current++, nickname, message }]);
+      chat.setContent(message);
   };
   const handleKeyDown = (event: { key: string; }) => {
     if (event.key === 'Enter') {
