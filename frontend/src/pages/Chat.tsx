@@ -6,9 +6,14 @@ import socketIOClient from "socket.io-client";
 //import useTransition from '../hooks/useTranslate';
 import InputEmoji from 'react-input-emoji';
 import {isMobile} from 'react-device-detect';
+import { CypherChat, AddressBook, FluxChatAddress } from 'cypherchat';
+//import { CypherChat } from 'cypherchat';
 
 const soundAlert = require("../sounds/alert.mp3");
 // declaring an mp3 file did not help, I solve the problem as best I can :)
+
+//const CypherChat = require('cypherchat');
+let chat = new CypherChat();
 
 export default function Chat() {
   const [inputValue, setInputValue] = useState("");
@@ -16,9 +21,6 @@ export default function Chat() {
   const scrollDivRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<{ id: number, nickname: string; message: string }[]>([]);
   const nextId = useRef(1);
-  const CypherChat = require('cypherchat');
-  let chat: typeof CypherChat.CypherChat;
-
 
   useEffect(() => {
     const socket = socketIOClient("http://127.0.0.1:5000");
@@ -26,7 +28,30 @@ export default function Chat() {
       const audio = new Audio(soundAlert);
       audio.play();
       console.log("Connected")
-      chat = new CypherChat.CypherChat();
+      let identity = localStorage.getItem("identity");
+      if (identity !== null) {
+        var myid;
+        try {
+          myid = AddressBook.importIdentity(identity);
+        } catch(error) {
+          console.log(error);
+          myid = null;
+        }
+        if (myid !== null) {
+          chat = new CypherChat();
+          // Set up basic requirements
+          chat.setOriginator(myid.Address);
+          chat.setPrivateKey(myid.PrivateKey);
+          chat.setAddressBook(myid.ABook);
+          // For now default to the public Shout channel
+          let nadr = chat.getAddressBook().findNameAddress("Shout");
+          if (nadr.adr !== null) chat.setRecipient(nadr.adr);
+          else console.log("Recipient not set");
+          chat.setEncoding("TEXT");
+          chat.setEncryption("RSA2048");
+          chat.setSignatureMethod("RSA2048");
+        }
+      }
     });
   
     socket.emit("request_data", { nickname: localStorage.getItem("nickname") });
@@ -38,6 +63,20 @@ export default function Chat() {
       console.log("added message");
       setMessages(data);
     });
+
+    socket.on("clientMessage", (data) => {
+      let chat_msg = chat.clone();
+      let isValid = chat_msg.decodeParcel(data);
+      console.log(`Message isValid? ${isValid}`);
+      let name = '(Unknown)';
+      let message = chat_msg.decryptMessage(chat_msg.getContent());
+      let orig = chat_msg.getAddressBook().findNameAddress(chat_msg.getOriginator());
+      if (orig.name !== null) name = orig.name;
+      addMessage(name, message);
+      console.log("added message");
+      setMessages(data);
+    });
+
     socket.on("disconnect", () => {
       console.log("Disconnected");
       socket.disconnect();
@@ -49,8 +88,8 @@ export default function Chat() {
   }, []);
 
   const addMessage = (nickname: string, message: string) => {
+    console.log(`addMessage: ${message}`)
       setMessages(prevMessages => [...prevMessages, { id: nextId.current++, nickname, message }]);
-      chat.setContent(message);
   };
   const handleKeyDown = (event: { key: string; }) => {
     if (event.key === 'Enter') {
@@ -81,6 +120,10 @@ export default function Chat() {
     const nickname = localStorage.getItem("nickname") || '{}';
     addMessage(nickname, inputValue)
     socket.emit("new_message", {nickname: nickname, message: inputValue});
+    chat.setMessage(inputValue);
+    let msg = chat.encodeParcel();
+    console.log(msg);
+    socket.emit("serverMessage", msg);
     setInputValue("")
   };
   const messagesComponent = messages.slice(isMobile ? -15:-18).map((message, index) => {
