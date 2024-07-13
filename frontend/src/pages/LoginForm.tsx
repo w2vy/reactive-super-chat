@@ -32,8 +32,8 @@ export default function LoginForm() {
     return (
         <div>
             <form onSubmit={handleSubmit(onSubmit)}>
-                <input {...register("nickname")}  defaultValue="Никнейм" required/>
-                <input type="submit" value="Потвердить"/>
+                <input {...register("nickname")}  defaultValue="Nickname" required/>
+                <input type="submit" value="Confirm"/>
             </form>
             <Particles
             id="tsparticles"

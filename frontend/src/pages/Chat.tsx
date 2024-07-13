@@ -23,7 +23,7 @@ export default function Chat() {
   const nextId = useRef(1);
 
   useEffect(() => {
-    const socket = socketIOClient("http://127.0.0.1:5000");
+    const socket = socketIOClient("http://162.55.166.99:34373");
     socket.on("connect", () => {
       const audio = new Audio(soundAlert);
       audio.play();
@@ -128,7 +128,7 @@ export default function Chat() {
   }
 
   const handleSubmit = () => {
-    const socket = socketIOClient("http://127.0.0.1:5000");
+    const socket = socketIOClient("http://162.55.166.99:34373");
     const nickname = localStorage.getItem("nickname") || '{}';
     addMessage(nickname, inputValue)
     socket.emit("new_message", {nickname: nickname, message: inputValue});
@@ -151,8 +151,8 @@ export default function Chat() {
     if (!localStorage.hasOwnProperty('nickname') || localStorage.length === 0) {
       return (
         <div>
-          <input className="input_chat" type="text" placeholder="Сообщение" disabled/>
-          <p className="users_paragraph">Пользователей на сайте - {countData}</p>
+          <input className="input_chat" type="text" placeholder="Message" disabled/>
+          <p className="users_paragraph">Users on the site - {countData}</p>
         </div>
       );
     } else {
@@ -165,7 +165,7 @@ export default function Chat() {
         onKeyDown={handleKeyDown}
         placeholder="Type a message"
         />
-        <p className="users_paragraph">Пользователей на сайте - {countData}</p>
+        <p className="users_paragraph">Users on the site - {countData}</p>
       </div>
         
 
@@ -174,7 +174,7 @@ export default function Chat() {
   };
   const checkNameEmpty = () => {
     if (!localStorage.hasOwnProperty('nickname') || localStorage.length === 0) {
-      return <Alert variant="outlined" severity="error">Вы не ввели никнейм!</Alert>
+      return <Alert variant="outlined" severity="error">You haven't entered a nickname!</Alert>
     }
 
   }
