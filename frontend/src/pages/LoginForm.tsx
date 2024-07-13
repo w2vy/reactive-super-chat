@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 import { loadFull } from "tsparticles";
 import { useLocation } from "wouter";
 import { Engine } from "tsparticles-engine";
-
+import { AddressBook } from "cypherchat";
 
 
 export default function LoginForm() {
@@ -18,7 +18,13 @@ export default function LoginForm() {
         const nickname = data.nickname;
         localStorage.setItem("nickname", nickname);
         setLocation("/chat");
-    };
+        let identity = localStorage.getItem("identity");
+        if (identity === null ) {
+            let myid = AddressBook.createIdentity(nickname);
+            identity = AddressBook.exportIdentity(myid);
+            localStorage.setItem("identity", identity);
+        }
+};
     const particlesInit = useCallback(async (engine: Engine) => {
         await loadFull(engine);
     }, []);
@@ -26,8 +32,8 @@ export default function LoginForm() {
     return (
         <div>
             <form onSubmit={handleSubmit(onSubmit)}>
-                <input {...register("nickname")}  defaultValue="Никнейм" required/>
-                <input type="submit" value="Потвердить"/>
+                <input {...register("nickname")}  defaultValue="Nickname" required/>
+                <input type="submit" value="Confirm"/>
             </form>
             <Particles
             id="tsparticles"
