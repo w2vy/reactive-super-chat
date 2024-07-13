@@ -48,8 +48,16 @@ export default function Chat() {
           if (nadr.adr !== null) chat.setRecipient(nadr.adr);
           else console.log("Recipient not set");
           chat.setEncoding("TEXT");
-          chat.setEncryption("RSA2048");
+          //chat.setEncryption("RSA2048");
           chat.setSignatureMethod("RSA2048");
+          // send Listen for my address and all channels
+          let msg = chat.encodeListenFor(myid.Address, myid.PublicKey, myid.PrivateKey);
+          socket.emit("serverMessage", msg)
+          let msgs = chat.channelsListenFor(chat.getAddressBook().getChannels());
+          console.log(msgs);
+          for (msg in msgs) {
+            socket.emit("serverMessage", msgs[msg]);
+          }
         }
       }
     });
@@ -65,24 +73,28 @@ export default function Chat() {
     });
 
     socket.on("clientMessage", (data) => {
+      console.log("clientMessage");
       let chat_msg = chat.clone();
+      console.log("try decodeParcel");
       let isValid = chat_msg.decodeParcel(data);
       console.log(`Message isValid? ${isValid}`);
       let name = '(Unknown)';
       let message = chat_msg.decryptMessage(chat_msg.getContent());
+      console.log('docoded Parcel');
       let orig = chat_msg.getAddressBook().findNameAddress(chat_msg.getOriginator());
       if (orig.name !== null) name = orig.name;
       addMessage(name, message);
-      console.log("added message");
-      setMessages(data);
+      console.log(`added message ${name}: ${message}`);
+      //setMessages(data);
     });
 
     socket.on("disconnect", () => {
-      console.log("Disconnected");
+      console.log("Disconnected event");
       socket.disconnect();
     });
   
     return () => {
+      console.log('disconnect requested')
       socket.disconnect();
     };
   }, []);
@@ -122,7 +134,7 @@ export default function Chat() {
     socket.emit("new_message", {nickname: nickname, message: inputValue});
     chat.setMessage(inputValue);
     let msg = chat.encodeParcel();
-    console.log(msg);
+    console.log(`serverMessage ${msg}`);
     socket.emit("serverMessage", msg);
     setInputValue("")
   };
