@@ -1,43 +1,43 @@
+import React from "react";
 import Alert from '@mui/material/Alert';
 import { useState, useEffect, useRef } from 'react';
-import socketIOClient from "socket.io-client";
-//import CypherChat from 'cypherchat';
-
-//import useTransition from '../hooks/useTranslate';
-import InputEmoji from 'react-input-emoji';
+import InputEmoji from 'react-input-emoji'; 
 import {isMobile} from 'react-device-detect';
-import { CypherChat, AddressBook, FluxChatAddress } from 'cypherchat';
-//import { CypherChat } from 'cypherchat';
+import { CypherChat, AddressBook, Identity, Service } from 'cypherchat';
+import ChatProps from "../ChatProps";
 
-const soundAlert = require("../sounds/alert.mp3");
+//const soundAlert = require("../sounds/alert.mp3");
 // declaring an mp3 file did not help, I solve the problem as best I can :)
 
 //const CypherChat = require('cypherchat');
 let chat = new CypherChat();
 
-export default function Chat() {
+let myid : Identity;
+let mySession: string;
+
+const Chat: React.FC<ChatProps> = ({ socket }) => {
   const [inputValue, setInputValue] = useState("");
   const [countData, setCount] = useState("");
   const scrollDivRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<{ id: number, nickname: string; message: string }[]>([]);
   const nextId = useRef(1);
 
-  useEffect(() => {
-    const socket = socketIOClient("http://162.55.166.99:34373");
+React.useEffect(() => {
+    //const socket = socketIOClient(FCServer);
+    if (!socket.connected) {
+      console.log("connecting...");
+      socket.connect();
+    }
+
     socket.on("connect", () => {
-      const audio = new Audio(soundAlert);
-      audio.play();
+      //const audio = new Audio(soundAlert);
+      //audio.play();
       console.log("Connected")
       let identity = localStorage.getItem("identity");
       if (identity !== null) {
-        var myid;
         try {
           myid = AddressBook.importIdentity(identity);
-        } catch(error) {
-          console.log(error);
-          myid = null;
-        }
-        if (myid !== null) {
+          console.log(`myid is ${myid}`);
           chat = new CypherChat();
           // Set up basic requirements
           chat.setOriginator(myid.Address);
@@ -47,45 +47,47 @@ export default function Chat() {
           let nadr = chat.getAddressBook().findNameAddress("Shout");
           if (nadr.adr !== null) chat.setRecipient(nadr.adr);
           else console.log("Recipient not set");
+          console.log(`setup Recipient ${chat.getRecipient()} ${nadr.adr}`);
           chat.setEncoding("TEXT");
           //chat.setEncryption("RSA2048");
           chat.setSignatureMethod("RSA2048");
+        } catch(error) {
+          console.log(error);
+        }
+      }
+    });
+  
+    socket.on("clientMessage", (data) => {
+      console.log(`clientMessage ${socket.id}`);
+      let chat_msg = chat.clone();
+      chat_msg.setVerbose(true);
+      console.log("try decodeParcel");
+      let isValid = chat_msg.decodeParcel(data);
+      console.log(`Message isValid? ${isValid}`);
+      console.log(`Service: ${chat_msg.getService()}`);
+      if (chat_msg.getService() === undefined) { // We have a user message
+        let name = '(Unknown)';
+        let message = chat_msg.decryptMessage(chat_msg.getContent());
+        console.log('decoded Parcel');
+        let orig = chat_msg.getAddressBook().findNameAddress(chat_msg.getOriginator());
+        if (orig.name !== null) name = orig.name;
+        addMessage(name, message);
+        console.log(`added message ${name}: ${message}`);
+      } else { // We have a service message
+        if (chat_msg.getService() === Service.NEW_SESSION) {
+          mySession = chat_msg.getContent();
+          console.log(`New Session: ${mySession}`);
           // send Listen for my address and all channels
-          let msg = chat.encodeListenFor(myid.Address, myid.PublicKey, myid.PrivateKey);
+          console.log(`Listen ${myid}`);
+          let msg = chat.encodeListenFor(myid.Address, myid.PublicKey, myid.PrivateKey, mySession);
           socket.emit("serverMessage", msg)
-          let msgs = chat.channelsListenFor(chat.getAddressBook().getChannels());
+          let msgs = chat.channelsListenFor(chat.getAddressBook().getChannels(), mySession);
           console.log(msgs);
           for (msg in msgs) {
             socket.emit("serverMessage", msgs[msg]);
           }
         }
       }
-    });
-  
-    socket.emit("request_data", { nickname: localStorage.getItem("nickname") });
-    socket.on("request_data", (data) => {
-      setCount(data.count);
-    });
-  
-    socket.on("new_message", (data) => {
-      console.log("added message");
-      setMessages(data);
-    });
-
-    socket.on("clientMessage", (data) => {
-      console.log("clientMessage");
-      let chat_msg = chat.clone();
-      console.log("try decodeParcel");
-      let isValid = chat_msg.decodeParcel(data);
-      console.log(`Message isValid? ${isValid}`);
-      let name = '(Unknown)';
-      let message = chat_msg.decryptMessage(chat_msg.getContent());
-      console.log('docoded Parcel');
-      let orig = chat_msg.getAddressBook().findNameAddress(chat_msg.getOriginator());
-      if (orig.name !== null) name = orig.name;
-      addMessage(name, message);
-      console.log(`added message ${name}: ${message}`);
-      //setMessages(data);
     });
 
     socket.on("disconnect", () => {
@@ -128,10 +130,11 @@ export default function Chat() {
   }
 
   const handleSubmit = () => {
-    const socket = socketIOClient("http://162.55.166.99:34373");
+    //const socket = socketIOClient(FCServer);
     const nickname = localStorage.getItem("nickname") || '{}';
-    addMessage(nickname, inputValue)
-    socket.emit("new_message", {nickname: nickname, message: inputValue});
+    //addMessage(`(${nickname})`, inputValue)
+    //socket.emit("new_message", {nickname: nickname, message: inputValue});
+    console.log(`handleSubmit: Recipient ${chat.getRecipient()}`);
     chat.setMessage(inputValue);
     let msg = chat.encodeParcel();
     console.log(`serverMessage ${msg}`);
@@ -186,3 +189,5 @@ export default function Chat() {
     {chatComponent()}
   </div>
 }
+
+export default Chat;

@@ -1,7 +1,8 @@
 {
   "name": "frontend",
   "version": "0.1.0",
-  "homepage": "http://162.55.166.99:34370",
+  "xhomepage": "http://162.55.166.99:34370",
+  "homepage": "http://127.0.0.1:34370",
   "private": true,
     "dependencies": {
     "@emotion/react": "^11.10.6",
