@@ -1,7 +1,6 @@
 import socketIOClient from "socket.io-client";
 import { Socket } from "socket.io-client";
 import { ServerToClientEvents, ClientToServerEvents } from "./events";
-import DefaultEventsMap from "socket.io-client";
 
 const FCServer = "http://localhost:34373";
 //const FCServer = "http://162.55.166.99:34373";
@@ -26,8 +25,4 @@ class ChatSocket {
   }
 }
 
-interface myProps {
-   socket: Socket <typeof DefaultEventsMap, typeof DefaultEventsMap>
- }
- 
 export default ChatSocket;
