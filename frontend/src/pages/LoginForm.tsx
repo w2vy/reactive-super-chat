@@ -7,23 +7,68 @@ import { useLocation } from "wouter";
 import { Engine } from "tsparticles-engine";
 import { AddressBook } from "cypherchat";
 
+const defChatTo = 'Shout';
+const defAddContact = 'Paste Contact to Add';
+const defInstructions = 'Paste Contact above to add OR Copy contact below to share';
 
 export default function LoginForm() {
     const [, setLocation] = useLocation();
     const { register, handleSubmit } = useForm<FormValues>();
     type FormValues = {
         nickname: string;
+        names: string;
+        chatTo: string;
+        addContact: string;
+        instructions: string;
+        myContact: string;
     };
+    let Nickname = localStorage.getItem("nickname");
+    let knownNames = "(none)";
+    let chatTo = localStorage.getItem("chatto");
+    let AddContact = defAddContact;
+    let myContact = "Identity Not Found";
+
+    if (chatTo === null) chatTo = defChatTo;
+    if (Nickname === null) Nickname = "Enter Name";
+    else {
+        let identity = localStorage.getItem(`identity_${Nickname}`);
+        let myid = null;
+        if (identity !== null) {
+          try {
+            myid = AddressBook.importIdentity(identity);
+            myContact = JSON.stringify({Name: myid.Name, Address: myid.Address, PublicKey: myid.PublicKey});
+            let names =myid.ABook.getNames();
+            knownNames = 'Known Identities:';
+            for (let n in names) {
+                knownNames = ` ${knownNames} ${names[n]}`
+            }
+          } catch (error) {
+            console.log(error);
+          }
+        }
+    }
     const onSubmit: SubmitHandler<FormValues> = (data) => {
         const nickname = data.nickname;
         localStorage.setItem("nickname", nickname);
         setLocation("/chat");
-        let identity = localStorage.getItem("identity");
+        let identity = localStorage.getItem(`identity_${nickname}`);
         if (identity === null ) {
             let myid = AddressBook.createIdentity(nickname);
             identity = AddressBook.exportIdentity(myid);
-            localStorage.setItem("identity", identity);
+            localStorage.setItem(`identity_${nickname}`, identity);
         }
+        const addContact = data.addContact;
+        if (addContact.length > 0 && addContact !== defAddContact) {
+            let myid = AddressBook.importIdentity(identity);
+            try {
+                let jcontact = JSON.parse(addContact);
+                myid.ABook.createContact(jcontact.Address, jcontact.Name, jcontact.PublicKey);
+            } catch (error) {
+                console.log(error);
+            }
+        }
+        const chatTo = data.chatTo;
+        localStorage.setItem("chatto", chatTo);
 };
     const particlesInit = useCallback(async (engine: Engine) => {
         await loadFull(engine);
@@ -32,7 +77,12 @@ export default function LoginForm() {
     return (
         <div>
             <form onSubmit={handleSubmit(onSubmit)}>
-                <input {...register("nickname")}  defaultValue="Nickname" required/>
+                <input {...register("nickname")}  defaultValue={Nickname} required/>
+                <input {...register("names")}  defaultValue={knownNames} required/>
+                <input {...register("chatTo")}  defaultValue={chatTo} required/>
+                <input {...register("addContact")}  defaultValue={AddContact} />
+                <input {...register("instructions")}  defaultValue={defInstructions} />
+                <input {...register("myContact")}  defaultValue={myContact} />
                 <input type="submit" value="Confirm"/>
             </form>
             <Particles

@@ -22,7 +22,7 @@ const Chat: React.FC<ChatProps> = ({ socket }) => {
   const [messages, setMessages] = useState<{ id: number, nickname: string; message: string }[]>([]);
   const nextId = useRef(1);
 
-React.useEffect(() => {
+useEffect(() => {
     //const socket = socketIOClient(FCServer);
     if (!socket.connected) {
       console.log("connecting...");
@@ -33,7 +33,8 @@ React.useEffect(() => {
       //const audio = new Audio(soundAlert);
       //audio.play();
       console.log("Connected")
-      let identity = localStorage.getItem("identity");
+      let nickname = localStorage.getItem("nickname");
+      let identity = localStorage.getItem(`identity_${nickname}`);
       if (identity !== null) {
         try {
           myid = AddressBook.importIdentity(identity);
@@ -44,13 +45,23 @@ React.useEffect(() => {
           chat.setPrivateKey(myid.PrivateKey);
           chat.setAddressBook(myid.ABook);
           // For now default to the public Shout channel
-          let nadr = chat.getAddressBook().findNameAddress("Shout");
-          if (nadr.adr !== null) chat.setRecipient(nadr.adr);
-          else console.log("Recipient not set");
-          console.log(`setup Recipient ${chat.getRecipient()} ${nadr.adr}`);
-          chat.setEncoding("TEXT");
-          //chat.setEncryption("RSA2048");
-          chat.setSignatureMethod("RSA2048");
+          let chatTo = localStorage.getItem("chatto");
+          if (chatTo !== null) {
+            let nadr = chat.getAddressBook().findNameAddress(chatTo);
+            chatTo = nadr.adr;
+          }
+          if (chatTo === null) console.log("Recipient not set");
+          else {
+            chat.setRecipient(chatTo);
+            chat.setEncoding("TEXT");
+            chat.setSignatureMethod("RSA2048");
+            if (chat.getAddressBook().isChannelPrivate(chatTo) === true) {
+              chat.setEncryption("RSA2048");
+            } else {
+              chat.setEncryption("NONE");
+            }
+          }
+          console.log(`setup Recipient ${chat.getRecipient()} ${chatTo}`);
         } catch(error) {
           console.log(error);
         }
@@ -99,7 +110,7 @@ React.useEffect(() => {
       console.log('disconnect requested')
       socket.disconnect();
     };
-  }, []);
+  }, [socket]);
 
   const addMessage = (nickname: string, message: string) => {
     console.log(`addMessage: ${message}`)
@@ -131,7 +142,7 @@ React.useEffect(() => {
 
   const handleSubmit = () => {
     //const socket = socketIOClient(FCServer);
-    const nickname = localStorage.getItem("nickname") || '{}';
+    //const nickname = localStorage.getItem("nickname") || '{}';
     //addMessage(`(${nickname})`, inputValue)
     //socket.emit("new_message", {nickname: nickname, message: inputValue});
     console.log(`handleSubmit: Recipient ${chat.getRecipient()}`);
