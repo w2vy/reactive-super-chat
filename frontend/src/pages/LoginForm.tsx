@@ -63,6 +63,8 @@ export default function LoginForm() {
             try {
                 let jcontact = JSON.parse(addContact);
                 myid.ABook.createContact(jcontact.Address, jcontact.Name, jcontact.PublicKey);
+                identity = AddressBook.exportIdentity(myid);
+                localStorage.setItem(`identity_${nickname}`, identity);
             } catch (error) {
                 console.log(error);
             }
