@@ -5,13 +5,13 @@ import { useCallback } from 'react';
 import { loadFull } from "tsparticles";
 import { useLocation } from "wouter";
 import { Engine } from "tsparticles-engine";
-import { AddressBook } from "cypherchat";
+import ChatProps from "../ChatProps";
 
 const defChatTo = 'Shout';
 const defAddContact = 'Paste Contact to Add';
 const defInstructions = 'Paste Contact above to add OR Copy contact below to share';
 
-export default function LoginForm() {
+const LoginForm: React.FC<ChatProps> = ({ fluxchat }) => {
     const [, setLocation] = useLocation();
     const { register, handleSubmit } = useForm<FormValues>();
     type FormValues = {
@@ -31,46 +31,36 @@ export default function LoginForm() {
     if (chatTo === null) chatTo = defChatTo;
     if (Nickname === null) Nickname = "Enter Name";
     else {
-        let identity = localStorage.getItem(`identity_${Nickname}`);
-        let myid = null;
-        if (identity !== null) {
-          try {
-            myid = AddressBook.importIdentity(identity);
-            myContact = JSON.stringify({Name: myid.Name, Address: myid.Address, PublicKey: myid.PublicKey});
-            let names =myid.ABook.getNames();
-            knownNames = 'Known Identities:';
-            for (let n in names) {
-                knownNames = ` ${knownNames} ${names[n]}`
-            }
-          } catch (error) {
-            console.log(error);
-          }
-        }
+        //myContact = JSON.stringify({Name: myid.Name, Address: myid.Address, PublicKey: myid.PublicKey});
+        //knownNames = 'Known Identities:';
     }
     const onSubmit: SubmitHandler<FormValues> = (data) => {
         const nickname = data.nickname;
-        localStorage.setItem("nickname", nickname);
-        setLocation("/chat");
-        let identity = localStorage.getItem(`identity_${nickname}`);
-        if (identity === null ) {
-            let myid = AddressBook.createIdentity(nickname);
-            identity = AddressBook.exportIdentity(myid);
-            localStorage.setItem(`identity_${nickname}`, identity);
+        console.log(`nickname: ${nickname}`);
+        if (nickname !== localStorage.getItem("nickname") || !fluxchat.serverIsConnected()) {
+            fluxchat.serverDisconnect();
+            if (!fluxchat.loadIdentity(nickname)) { // id invalid
+                fluxchat.createIdentity(nickname); // Create one
+            }
+            if (fluxchat.loadIdentity(nickname)) { // id is valid
+                localStorage.setItem("nickname", nickname);
+                setLocation("/chat");
+                fluxchat.serverConnect();
+            }
         }
         const addContact = data.addContact;
+        console.log(`addContact: ${addContact}`);
         if (addContact.length > 0 && addContact !== defAddContact) {
-            let myid = AddressBook.importIdentity(identity);
             try {
                 let jcontact = JSON.parse(addContact);
-                myid.ABook.createContact(jcontact.Address, jcontact.Name, jcontact.PublicKey);
-                identity = AddressBook.exportIdentity(myid);
-                localStorage.setItem(`identity_${nickname}`, identity);
+                fluxchat.createContact(jcontact.Address, jcontact.Name, jcontact.PublicKey);
             } catch (error) {
                 console.log(error);
             }
         }
         const chatTo = data.chatTo;
         localStorage.setItem("chatto", chatTo);
+        console.log(`chatTo: ${chatTo}`);
 };
     const particlesInit = useCallback(async (engine: Engine) => {
         await loadFull(engine);
@@ -162,3 +152,4 @@ export default function LoginForm() {
       );
     
 }
+export default LoginForm;

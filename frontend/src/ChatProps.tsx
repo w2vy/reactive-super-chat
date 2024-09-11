@@ -1,8 +1,7 @@
-import { Socket } from "socket.io-client";
-import { ServerToClientEvents, ClientToServerEvents } from "./events";
+import { FluxChat } from "fluxchat";
 
 interface ChatProps {
-  socket: Socket <ServerToClientEvents, ClientToServerEvents>
+  fluxchat: FluxChat
 }
 
 export default ChatProps;

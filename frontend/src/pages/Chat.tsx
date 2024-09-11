@@ -3,126 +3,29 @@ import Alert from '@mui/material/Alert';
 import { useState, useEffect, useRef } from 'react';
 import InputEmoji from 'react-input-emoji'; 
 import {isMobile} from 'react-device-detect';
-import { CypherChat, AddressBook, Identity, Service } from 'cypherchat';
 import ChatProps from "../ChatProps";
 
-//const soundAlert = require("../sounds/alert.mp3");
-// declaring an mp3 file did not help, I solve the problem as best I can :)
-
-//const CypherChat = require('cypherchat');
-let chat = new CypherChat();
-
-let myid : Identity;
-let mySession: string;
-
-const Chat: React.FC<ChatProps> = ({ socket }) => {
+const Chat: React.FC<ChatProps> = ({ fluxchat }) => {
   const [inputValue, setInputValue] = useState("");
   const [countData, setCount] = useState("");
   const scrollDivRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<{ id: number, nickname: string; message: string }[]>([]);
   const nextId = useRef(1);
-
-useEffect(() => {
-    //const socket = socketIOClient(FCServer);
-    if (!socket.connected) {
-      console.log("connecting...");
-      socket.connect();
-    }
-
-    socket.on("connect", () => {
-      //const audio = new Audio(soundAlert);
-      //audio.play();
-      console.log("Connected")
-      let nickname = localStorage.getItem("nickname");
-      let identity = localStorage.getItem(`identity_${nickname}`);
-      if (identity !== null) {
-        try {
-          myid = AddressBook.importIdentity(identity);
-          console.log(`myid is ${myid}`);
-          chat = new CypherChat();
-          // Set up basic requirements
-          chat.setOriginator(myid.Address);
-          chat.setPrivateKey(myid.PrivateKey);
-          chat.setAddressBook(myid.ABook);
-          // For now default to the public Shout channel
-          let chatTo = localStorage.getItem("chatto");
-          if (chatTo !== null) {
-            let nadr = chat.getAddressBook().findNameAddress(chatTo);
-            chatTo = nadr.adr;
-          }
-          if (chatTo === null) console.log("Recipient not set");
-          else {
-            chat.setRecipient(chatTo);
-            chat.setEncoding("TEXT");
-            chat.setSignatureMethod("RSA2048");
-            if (chat.getAddressBook().isChannelPrivate(chatTo) === true) {
-              chat.setEncryption("RSA2048");
-            } else {
-              chat.setEncryption("NONE");
-            }
-          }
-          console.log(`setup Recipient ${chat.getRecipient()} ${chatTo}`);
-        } catch(error) {
-          console.log(error);
-        }
-      }
-    });
+  const myContacts: {[key: string]: string} = fluxchat.getContacts();
+  const lschatto =  localStorage.getItem("chatto");
+  const chatto: string = lschatto === null ? "Shout" : lschatto;
+  const [selectedName, setSelectedName] = useState<string>(chatto);
   
-    socket.on("clientMessage", (data) => {
-      console.log(`clientMessage ${socket.id}`);
-      let chat_msg = chat.clone();
-      chat_msg.setVerbose(true);
-      console.log("try decodeParcel");
-      let isValid = chat_msg.decodeParcel(data);
-      console.log(`Message isValid? ${isValid}`);
-      console.log(`Service: ${chat_msg.getService()}`);
-      if (chat_msg.getService() === undefined) { // We have a user message
-        let name = '(Unknown)';
-        let message = chat_msg.decryptMessage(chat_msg.getContent());
-        console.log('decoded Parcel');
-        let orig = chat_msg.getAddressBook().findNameAddress(chat_msg.getOriginator());
-        if (orig.name !== null) name = orig.name;
-        addMessage(name, message);
-        console.log(`added message ${name}: ${message}`);
-      } else { // We have a service message
-        if (chat_msg.getService() === Service.NEW_SESSION) {
-          mySession = chat_msg.getContent();
-          console.log(`New Session: ${mySession}`);
-          // send Listen for my address and all channels
-          console.log(`Listen ${myid}`);
-          let msg = chat.encodeListenFor(myid.Address, myid.PublicKey, myid.PrivateKey, mySession);
-          socket.emit("serverMessage", msg)
-          let msgs = chat.channelsListenFor(chat.getAddressBook().getChannels(), mySession);
-          console.log(msgs);
-          for (msg in msgs) {
-            socket.emit("serverMessage", msgs[msg]);
-          }
-        }
-      }
-    });
-
-    socket.on("disconnect", () => {
-      console.log("Disconnected event");
-      socket.disconnect();
-    });
-  
-    return () => {
-      console.log('disconnect requested')
-      socket.disconnect();
-    };
-  }, [socket]);
-
   const addMessage = (nickname: string, message: string) => {
-    console.log(`addMessage: ${message}`)
-      setMessages(prevMessages => [...prevMessages, { id: nextId.current++, nickname, message }]);
+    console.log(`addMessage: ${message}`);
+    setMessages(prevMessages => [...prevMessages, { id: nextId.current++, nickname, message }]);
   };
+
   const handleKeyDown = (event: { key: string; }) => {
     if (event.key === 'Enter') {
       handleSubmit();
     }
   };
-  // const textProps = { text: "Пример текста для перевода" };
-  // const text = await useTransition(textProps);
 
   const settingThemeChat = () => {
     const themeChat = localStorage.getItem("theme");
@@ -140,18 +43,27 @@ useEffect(() => {
     return {'backgroundColor': '#35487a','backgroundColor2': '#2f406d'}
   }
 
+  function display_message(address:string, valid:boolean, message:string): void {
+    let name = address;
+    if (address in myContacts) name = myContacts[address];
+    console.log(`display_message: isValid ${valid} ${name}: ${message}`);
+    addMessage(`${name}`, `[${valid}] ${message}`);
+  }
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedName(e.target.value);
+  };
+
   const handleSubmit = () => {
-    //const socket = socketIOClient(FCServer);
-    //const nickname = localStorage.getItem("nickname") || '{}';
-    //addMessage(`(${nickname})`, inputValue)
-    //socket.emit("new_message", {nickname: nickname, message: inputValue});
-    console.log(`handleSubmit: Recipient ${chat.getRecipient()}`);
-    chat.setMessage(inputValue);
-    let msg = chat.encodeParcel();
-    console.log(`serverMessage ${msg}`);
-    socket.emit("serverMessage", msg);
+    if (selectedName !== null) {
+      localStorage.setItem("chatto", selectedName);
+      addMessage(`(You)`, inputValue)
+      if (!fluxchat.hasChat(selectedName)) fluxchat.createChat(selectedName, display_message);
+      fluxchat.sendChatMessage(selectedName, inputValue);
+    }
     setInputValue("")
   };
+
   const messagesComponent = messages.slice(isMobile ? -15:-18).map((message, index) => {
     return (
       <div key={index} className="message_card" style={index % 2 === 0 && index !== 0 ? 
@@ -170,7 +82,7 @@ useEffect(() => {
         </div>
       );
     } else {
-      return <div>
+      return <div  style={{ fontSize: '16px' }}>
         <br/>
         <InputEmoji
         value={inputValue}
@@ -179,6 +91,21 @@ useEffect(() => {
         onKeyDown={handleKeyDown}
         placeholder="Type a message"
         />
+        <select
+            id="Select"
+            value={selectedName}
+            onChange={handleSelectChange}
+          >
+            {Object.entries(myContacts).map(([key, value]) => (
+              <option
+                key={key}
+                value={value}
+                defaultValue={selectedName}
+              >
+                {value}
+              </option>
+            ))}
+        </select>
         <p className="users_paragraph">Users on the site - {countData}</p>
       </div>
         
