@@ -6,6 +6,7 @@ import { loadFull } from "tsparticles";
 import { useLocation } from "wouter";
 import { Engine } from "tsparticles-engine";
 import ChatProps from "../ChatProps";
+import { Identity } from "fluxchat";
 
 const defChatTo = 'Shout';
 const defAddContact = 'Paste Contact to Add';
@@ -16,23 +17,23 @@ const LoginForm: React.FC<ChatProps> = ({ fluxchat }) => {
     const { register, handleSubmit } = useForm<FormValues>();
     type FormValues = {
         nickname: string;
-        names: string;
-        chatTo: string;
         addContact: string;
-        instructions: string;
         myContact: string;
     };
     let Nickname = localStorage.getItem("nickname");
-    let knownNames = "(none)";
     let chatTo = localStorage.getItem("chatto");
-    let AddContact = defAddContact;
     let myContact = "Identity Not Found";
 
-    if (chatTo === null) chatTo = defChatTo;
+    if (chatTo === null) {
+        chatTo = defChatTo;
+        localStorage.setItem("chatto", chatTo);
+    }
     if (Nickname === null) Nickname = "Enter Name";
     else {
-        //myContact = JSON.stringify({Name: myid.Name, Address: myid.Address, PublicKey: myid.PublicKey});
-        //knownNames = 'Known Identities:';
+        if (fluxchat.loadIdentity(Nickname)) { // id is valid
+            const myid:Identity = fluxchat.getMyIdentity();
+            myContact = JSON.stringify({Name: myid.Name, Address: myid.Address, PublicKey: myid.PublicKey});
+        }
     }
     const onSubmit: SubmitHandler<FormValues> = (data) => {
         const nickname = data.nickname;
@@ -50,7 +51,7 @@ const LoginForm: React.FC<ChatProps> = ({ fluxchat }) => {
         }
         const addContact = data.addContact;
         console.log(`addContact: ${addContact}`);
-        if (addContact.length > 0 && addContact !== defAddContact) {
+        if (addContact.length > 0) {
             try {
                 let jcontact = JSON.parse(addContact);
                 fluxchat.createContact(jcontact.Address, jcontact.Name, jcontact.PublicKey);
@@ -58,10 +59,7 @@ const LoginForm: React.FC<ChatProps> = ({ fluxchat }) => {
                 console.log(error);
             }
         }
-        const chatTo = data.chatTo;
-        localStorage.setItem("chatto", chatTo);
-        console.log(`chatTo: ${chatTo}`);
-};
+    };
     const particlesInit = useCallback(async (engine: Engine) => {
         await loadFull(engine);
     }, []);
@@ -69,13 +67,26 @@ const LoginForm: React.FC<ChatProps> = ({ fluxchat }) => {
     return (
         <div>
             <form onSubmit={handleSubmit(onSubmit)}>
-                <input {...register("nickname")}  defaultValue={Nickname} required/>
-                <input {...register("names")}  defaultValue={knownNames} required/>
-                <input {...register("chatTo")}  defaultValue={chatTo} required/>
-                <input {...register("addContact")}  defaultValue={AddContact} />
-                <input {...register("instructions")}  defaultValue={defInstructions} />
-                <input {...register("myContact")}  defaultValue={myContact} />
-                <input type="submit" value="Confirm"/>
+                <input id="nicknameInput" {...register("nickname")} defaultValue={Nickname} required />
+                <br />
+                <label htmlFor="nicknameInput">Nickname:</label>
+                <input id="addContactInput" {...register("addContact")} />
+                <br />
+                <label htmlFor="addContactInput">Contact to Add:</label>
+                <br />
+                <label htmlFor="myContactInput">My Contact</label>
+                <textarea
+                    value={myContact}
+                      style={{
+                        width: "100%",
+                        height: "200px",
+                        padding: "10px",
+                        fontSize: "16px",
+                      }}
+                    readOnly
+                />
+                <button onClick={() => navigator.clipboard.writeText(myContact)}>Copy Contact</button>
+                <input type="submit" value="Confirm" />
             </form>
             <Particles
             id="tsparticles"
