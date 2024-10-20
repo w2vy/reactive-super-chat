@@ -1,17 +1,18 @@
+import { Route } from "wouter";
 import LoginForm from "./pages/LoginForm";
 import Chat from "./pages/Chat";
 import ChoiceTheme from "./pages/ChoiceTheme";
 import "./App.css";
-import { Route } from "wouter";
+import ChatProps from "./ChatProps";
 
-
-function App() {
-  return <div>
-    <Route path="/" component={LoginForm} />
-    <Route path="/chat" component={Chat} />
-    <Route path="/theme" component={ChoiceTheme} />
-  </div>
+function App({ fluxchat }: ChatProps) {
+  return (
+    <div>
+      <Route path="/" component={() => <LoginForm fluxchat={fluxchat}/>} />
+      <Route path="/chat" component={() => <Chat fluxchat={fluxchat}/>} />
+      <Route path="/theme" component={ChoiceTheme} />
+    </div>
+  );
 }
-
 
 export default App;
